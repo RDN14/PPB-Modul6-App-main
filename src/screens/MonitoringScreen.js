@@ -6,26 +6,42 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMqttSensor } from "../hooks/useMqttSensor.js";
 import { Api } from "../services/api.js";
 import { DataTable } from "../components/DataTable.js";
+import { Pagination } from "../components/Pagination.js";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../contexts/AuthContext.js";
 
-export function MonitoringScreen() {
+export function MonitoringScreen({ navigation }) {
   const { temperature, timestamp, connectionState, error: mqttError } = useMqttSensor();
+  const { isGuest } = useAuth();
   const [readings, setReadings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
 
-  const fetchReadings = useCallback(async () => {
+  const fetchReadings = useCallback(async (page = 1) => {
     setLoading(true);
     setApiError(null);
     try {
-      const data = await Api.getSensorReadings();
-      setReadings(data ?? []);
+      const data = await Api.getSensorReadings(page, limit);
+      // Handle both array response and paginated response
+      if (Array.isArray(data)) {
+        setReadings(data);
+        setTotalPages(1);
+      } else {
+        setReadings(data.data ?? []);
+        setTotalPages(data.totalPages ?? 1);
+        setCurrentPage(data.currentPage ?? page);
+      }
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -35,17 +51,22 @@ export function MonitoringScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchReadings();
-    }, [fetchReadings])
+      fetchReadings(currentPage);
+    }, [fetchReadings, currentPage])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchReadings();
+      await fetchReadings(currentPage);
     } finally {
       setRefreshing(false);
     }
+  }, [fetchReadings, currentPage]);
+
+  const handlePageChange = useCallback((newPage) => {
+    setCurrentPage(newPage);
+    fetchReadings(newPage);
   }, [fetchReadings]);
 
   return (
@@ -54,6 +75,19 @@ export function MonitoringScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {isGuest && (
+        <View style={styles.guestBanner}>
+          <Ionicons name="information-circle-outline" size={20} color="#2563eb" />
+          <Text style={styles.guestText}>You are browsing as a guest</Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => navigation.navigate("Login")}
+          >
+            <Text style={styles.loginButtonText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.card}>
         <Text style={styles.title}>Realtime Temperature</Text>
         <View style={styles.valueRow}>
@@ -98,6 +132,13 @@ export function MonitoringScreen() {
         data={readings}
         keyExtractor={(item) => item.id}
       />
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
     </ScrollView>
     </SafeAreaView>
   );
@@ -108,6 +149,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f9fb",
     padding: 16,
+  },
+  guestBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e0e7ff",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  guestText: {
+    flex: 1,
+    marginLeft: 8,
+    color: "#1f2937",
+    fontSize: 14,
+  },
+  loginButton: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  loginButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
   card: {
     backgroundColor: "#fff",
