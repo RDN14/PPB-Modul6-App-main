@@ -20,15 +20,6 @@ const Stack = createNativeStackNavigator();
 
 enableScreens(true);
 
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-    </Stack.Navigator>
-  );
-}
-
 function MainTabs() {
   const { isGuest } = useAuth();
 
@@ -68,7 +59,7 @@ function MainTabs() {
 }
 
 function AppNavigator() {
-  const { isLoading, isGuest, user } = useAuth();
+  const { isLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -96,7 +87,16 @@ function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={MainTabs} />
-      <Stack.Screen name="Auth" component={AuthStack} />
+      <Stack.Screen 
+        name="Login" 
+        component={LoginScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen 
+        name="Register" 
+        component={RegisterScreen}
+        options={{ presentation: 'card' }}
+      />
     </Stack.Navigator>
   );
 }
