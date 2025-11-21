@@ -73,13 +73,6 @@ function AppNavigator() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  useEffect(() => {
-    if (!isLoading && !showSplash) {
-      // Splash can be hidden
-      setShowSplash(false);
-    }
-  }, [isLoading, showSplash]);
-
   if (isLoading || showSplash) {
     return <SplashScreen />;
   }
